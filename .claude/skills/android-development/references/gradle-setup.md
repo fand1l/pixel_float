@@ -40,39 +40,42 @@ project-root/
 ```toml
 [versions]
 # SDK versions
-compileSdk = "34"
+# API 36 (Android 16) is the newest stable platform and the Play target
+# level required for new apps and updates since 31 Aug 2026.
+compileSdk = "36"
 minSdk = "24"
-targetSdk = "34"
+targetSdk = "36"
 
 # Kotlin & Compose
-kotlin = "1.9.22"
-kotlinxCoroutines = "1.7.3"
-kotlinxSerializationJson = "1.6.2"
-kotlinxDatetime = "0.5.0"
+kotlin = "2.4.10"
+kotlinxCoroutines = "1.11.0"
+kotlinxSerializationJson = "1.11.0"
+kotlinxDatetime = "0.8.0"
 
 # AndroidX
-androidxCore = "1.12.0"
-androidxLifecycle = "2.7.0"
-androidxActivity = "1.8.2"
-androidxNavigation = "2.8.0"
-androidxComposeBom = "2024.02.00"
-androidxHiltNavigationCompose = "1.1.0"
+androidxCore = "1.19.0"
+androidxLifecycle = "2.11.0"
+androidxActivity = "1.13.0"
+androidxNavigation = "2.9.8"
+androidxComposeBom = "2026.06.01"
+androidxHilt = "1.4.0"
 
 # Data
-room = "2.6.1"
-dataStore = "1.0.0"
-protobuf = "3.25.2"
+room = "2.8.4"
+dataStore = "1.2.1"
+protobuf = "4.35.1"
 
 # DI
-hilt = "2.50"
+hilt = "2.60.1"
 
 # Networking
-retrofit = "2.9.0"
-okhttp = "4.12.0"
+retrofit = "3.0.0"
+okhttp = "5.4.0"
 
 # Build
-androidGradlePlugin = "8.2.2"
-ksp = "1.9.22-1.0.17"
+# AGP 9.3.0 requires Gradle 9.5+ and JDK 17.
+androidGradlePlugin = "9.3.0"
+ksp = "2.3.11"
 
 [libraries]
 # Kotlin
@@ -98,7 +101,7 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 
 # Navigation
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "androidxNavigation" }
-androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "androidxHiltNavigationCompose" }
+androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "androidxHilt" }
 
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
@@ -116,17 +119,21 @@ protobuf-kotlin-lite = { group = "com.google.protobuf", name = "protobuf-kotlin-
 
 # Networking
 retrofit-core = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
-retrofit-kotlin-serialization = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version = "1.0.0" }
+# Retrofit 3 ships its own kotlinx.serialization converter - the old
+# com.jakewharton.retrofit converter is no longer needed.
+retrofit-kotlin-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 
 # Testing
 junit = { group = "junit", name = "junit", version = "4.13.2" }
-androidx-test-ext = { group = "androidx.test.ext", name = "junit-ktx", version = "1.1.5" }
-turbine = { group = "app.cash.turbine", name = "turbine", version = "1.0.0" }
+androidx-test-ext = { group = "androidx.test.ext", name = "junit-ktx", version = "1.3.0" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version = "1.7.0" }
+turbine = { group = "app.cash.turbine", name = "turbine", version = "1.2.1" }
 
 # Build plugins (for convention plugins)
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "androidGradlePlugin" }
 kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+compose-gradlePlugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
 ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 
 [plugins]
@@ -135,6 +142,8 @@ android-library = { id = "com.android.library", version.ref = "androidGradlePlug
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# Since Kotlin 2.0 the Compose compiler ships with Kotlin itself.
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }
@@ -167,6 +176,7 @@ java {
 dependencies {
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
+    compileOnly(libs.compose.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
 }
 
@@ -219,7 +229,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
 
             extensions.configure<LibraryExtension> {
                 configureKotlinAndroid(this)
-                defaultConfig.targetSdk = 34
+                defaultConfig.targetSdk = 36
             }
         }
     }
@@ -230,7 +240,7 @@ internal fun Project.configureKotlinAndroid(
     commonExtension: CommonExtension<*, *, *, *, *, *>,
 ) {
     commonExtension.apply {
-        compileSdk = 34
+        compileSdk = 36
 
         defaultConfig {
             minSdk = 24
@@ -240,11 +250,14 @@ internal fun Project.configureKotlinAndroid(
             sourceCompatibility = JavaVersion.VERSION_17
             targetCompatibility = JavaVersion.VERSION_17
         }
+    }
 
-        kotlinOptions {
-            jvmTarget = JavaVersion.VERSION_17.toString()
-            freeCompilerArgs = freeCompilerArgs + listOf(
-                "-opt-in=kotlin.RequiresOptIn",
+    // The `kotlinOptions` block is gone in AGP 9 - configure the Kotlin
+    // extension directly instead.
+    configure<KotlinAndroidProjectExtension> {
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_17
+            freeCompilerArgs.addAll(
                 "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
             )
         }
@@ -260,7 +273,11 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply("com.android.library")
-            
+            // Kotlin 2.x: the Compose compiler is a Kotlin plugin, so there is
+            // no `composeOptions { kotlinCompilerExtensionVersion = ... }` and
+            // no separate compose-compiler version to keep in sync.
+            pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
+
             val extension = extensions.getByType<LibraryExtension>()
             configureAndroidCompose(extension)
         }
@@ -274,11 +291,6 @@ internal fun Project.configureAndroidCompose(
     commonExtension.apply {
         buildFeatures {
             compose = true
-        }
-
-        composeOptions {
-            kotlinCompilerExtensionVersion = 
-                libs.findVersion("androidxComposeCompiler").get().toString()
         }
 
         dependencies {

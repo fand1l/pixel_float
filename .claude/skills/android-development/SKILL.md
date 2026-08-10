@@ -180,17 +180,26 @@ internal class OfflineFirstMyRepository @Inject constructor(
 ```kotlin
 // Gradle version catalog (libs.versions.toml)
 [versions]
-kotlin = "1.9.x"
-compose-bom = "2024.x.x"
-hilt = "2.48"
-room = "2.6.x"
-coroutines = "1.7.x"
+agp = "9.3.0"          // needs Gradle 9.5+ and JDK 17
+kotlin = "2.4.10"      // Compose compiler ships with Kotlin - no separate version
+ksp = "2.3.11"
+compose-bom = "2026.06.01"
+hilt = "2.60.1"
+room = "2.8.4"
+coroutines = "1.11.0"
 
 [libraries]
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 ```
+
+Full, current catalog: [assets/templates/libs.versions.toml.template](assets/templates/libs.versions.toml.template).
+Targets `compileSdk`/`targetSdk` 36 (Android 16) — the Play requirement for new apps
+and updates since 31 Aug 2026 — with `minSdk` 24.
+
+Versions above were verified in August 2026. Before starting a new project,
+re-check the latest releases rather than assuming these are still current.
 
 ## Build Configuration
 
