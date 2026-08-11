@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pixel Float</string>
+
+    <string name="listener_service_label">Сповіщення Pixel Float</string>
+    <string name="accessibility_service_label">Острівець Pixel Float</string>
+    <string name="accessibility_service_summary">Малює острівець сповіщень поверх статус-бара</string>
+    <string name="accessibility_service_description">Pixel Float використовує цю службу лише для того, щоб малювати острівець сповіщень поверх статус-бара й екрана блокування. Вміст екрана не читається.</string>
+
+    <string name="stage_banner">Етап 1a — перевірка вікна</string>
+
+    <string name="permission_overlay_title">Поверх інших застосунків</string>
+    <string name="permission_overlay_granted">Надано</string>
+    <string name="permission_overlay_missing">Не надано — острівець не показати</string>
+    <string name="permission_overlay_action">Надати</string>
+
+    <string name="island_show">Показати острівець</string>
+    <string name="island_hide">Сховати острівець</string>
+
+    <string name="geometry_title">Геометрія пігулки</string>
+    <string name="geometry_width">Ширина</string>
+    <string name="geometry_height">Висота</string>
+    <string name="geometry_offset_x">Зсув по горизонталі</string>
+    <string name="geometry_offset_y">Зсув по вертикалі</string>
+    <string name="geometry_corner">Радіус заокруглення</string>
+
+    <string name="cutout_title">Виріз екрана</string>
+    <string name="cutout_none">Виріз не повідомлено</string>
+
+    <string name="services_title">Служби</string>
+    <string name="service_bound">прив\'язана</string>
+    <string name="service_unbound">не прив\'язана</string>
+
+    <string name="log_title">Журнал</string>
+    <string name="log_clear">Очистити</string>
+    <string name="log_empty">Порожньо</string>
+
+    <string name="crash_title">Останнє падіння</string>
+    <string name="crash_none">Не зафіксовано</string>
+    <string name="crash_clear">Очистити</string>
+
+    <string name="check_touches">Перевірка: торкніться екрана поруч із пігулкою і потягніть униз — шторка має відкритися.</string>
+</resources>

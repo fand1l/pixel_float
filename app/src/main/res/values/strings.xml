@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pixel Float</string>
+
+    <string name="listener_service_label">Pixel Float notifications</string>
+    <string name="accessibility_service_label">Pixel Float island</string>
+    <string name="accessibility_service_summary">Draws the notification island above the status bar</string>
+    <string name="accessibility_service_description">Pixel Float uses this service only to draw its notification island above the status bar and the lock screen. It does not read screen content.</string>
+
+    <string name="stage_banner">Stage 1a — window spike</string>
+
+    <string name="permission_overlay_title">Draw over other apps</string>
+    <string name="permission_overlay_granted">Granted</string>
+    <string name="permission_overlay_missing">Not granted — the island cannot be shown</string>
+    <string name="permission_overlay_action">Grant</string>
+
+    <string name="island_show">Show island</string>
+    <string name="island_hide">Hide island</string>
+
+    <string name="geometry_title">Pill geometry</string>
+    <string name="geometry_width">Width</string>
+    <string name="geometry_height">Height</string>
+    <string name="geometry_offset_x">Horizontal offset</string>
+    <string name="geometry_offset_y">Vertical offset</string>
+    <string name="geometry_corner">Corner radius</string>
+
+    <string name="cutout_title">Display cutout</string>
+    <string name="cutout_none">No cutout reported</string>
+
+    <string name="services_title">Services</string>
+    <string name="service_bound">bound</string>
+    <string name="service_unbound">not bound</string>
+
+    <string name="log_title">Log</string>
+    <string name="log_clear">Clear</string>
+    <string name="log_empty">Empty</string>
+
+    <string name="crash_title">Last crash</string>
+    <string name="crash_none">None recorded</string>
+    <string name="crash_clear">Clear</string>
+
+    <string name="check_touches">Check: tap the gap beside the pill and swipe down — the shade must still open.</string>
+</resources>

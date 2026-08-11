@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose supplies the actual look; this theme only needs to be a bare,
+         action-bar-less host that lets the activity draw into the cutout area
+         (required later so the calibration preview shares the overlay's
+         coordinate space). No AppCompat/Material XML dependency. -->
+    <style name="Theme.PixelFloat" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+</resources>
