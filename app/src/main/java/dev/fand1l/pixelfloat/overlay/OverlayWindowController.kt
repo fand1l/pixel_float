@@ -1,10 +1,9 @@
 package dev.fand1l.pixelfloat.overlay
 
-import android.app.Application
+import android.graphics.Rect
 import android.graphics.Region
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -16,9 +15,10 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dev.fand1l.pixelfloat.core.DebugLog
 import dev.fand1l.pixelfloat.data.db.EventRepository
-import dev.fand1l.pixelfloat.data.settings.PillGeometry
+import dev.fand1l.pixelfloat.data.settings.AppSettings
+import dev.fand1l.pixelfloat.data.settings.OverlayWindowType
 import dev.fand1l.pixelfloat.data.settings.SettingsRepository
-import dev.fand1l.pixelfloat.overlay.ui.IslandPill
+import dev.fand1l.pixelfloat.overlay.ui.IslandPills
 import dev.fand1l.pixelfloat.theme.IslandTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +27,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -35,11 +36,12 @@ import kotlinx.coroutines.launch
  * The only class in the codebase that calls addView / updateViewLayout / removeViewImmediate.
  * Everything here runs on the main thread.
  *
- * Stage 1a scope: one window, one static pill, no notifications, no springs.
+ * Stage 1b scope: one window, two static pills flanking the cutout, either window type.
+ * No notifications, no springs, no gestures beyond tap-to-hide.
  */
 @MainThread
 class OverlayWindowController(
-    private val application: Application,
+    private val hosts: OverlayHostRegistry,
     private val settings: SettingsRepository,
     private val events: EventRepository,
     private val log: DebugLog,
@@ -59,10 +61,17 @@ class OverlayWindowController(
     private val _isShown = MutableStateFlow(false)
     val isShown: StateFlow<Boolean> = _isShown.asStateFlow()
 
+    /** Which host is actually drawing right now, which may not be the preferred one. */
+    private val _activeType = MutableStateFlow<OverlayWindowType?>(null)
+    val activeType: StateFlow<OverlayWindowType?> = _activeType.asStateFlow()
+
+    private val _usingFallbackHost = MutableStateFlow(false)
+    val usingFallbackHost: StateFlow<Boolean> = _usingFallbackHost.asStateFlow()
+
     /**
-     * Frames the composition has actually produced since the window was added.
-     * If this stays 0 while the window is up, the lifecycle never reached STARTED —
-     * the failure mode that produces a blank window with no exception anywhere.
+     * Frames the composition has actually produced since the window was added. If this
+     * stays 0 while the window is attached, the lifecycle never reached STARTED — the
+     * failure mode that produces a blank window with no exception anywhere.
      */
     private val _framesSinceShow = MutableStateFlow(0)
     val framesSinceShow: StateFlow<Int> = _framesSinceShow.asStateFlow()
@@ -73,6 +82,9 @@ class OverlayWindowController(
     private val _windowVisibility = MutableStateFlow<Int?>(null)
     val windowVisibility: StateFlow<Int?> = _windowVisibility.asStateFlow()
 
+    private val _lastError = MutableStateFlow<String?>(null)
+    val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
     fun toggle() {
         if (_isShown.value) hide() else show()
     }
@@ -82,14 +94,22 @@ class OverlayWindowController(
             log.i(TAG, "show ignored: window already attached")
             return@onMain
         }
-        if (!Settings.canDrawOverlays(application)) {
-            log.w(TAG, "show refused: SYSTEM_ALERT_WINDOW not granted")
+
+        val preferred = settings.settings.value.overlayWindowType
+        val resolution = hosts.resolve(preferred)
+        if (resolution is OverlayHostRegistry.Resolution.Unavailable) {
+            log.w(TAG, "show refused: ${resolution.reason}")
+            _lastError.value = resolution.reason
             return@onMain
         }
+        val ready = resolution as OverlayHostRegistry.Resolution.Ready
+        val newHost = ready.host
+        if (ready.fallback) {
+            log.w(TAG, "preferred host $preferred unavailable, falling back to ${newHost.type}")
+        }
 
-        val newHost = OverlayHost.AppOverlay(application)
         val cutoutInfo = CutoutGeometryProvider.read(newHost)
-        val layout = OverlayGeometry.compute(cutoutInfo, settings.settings.value.pill)
+        val layout = OverlayGeometry.compute(cutoutInfo, settings.settings.value.island)
         val layoutParams = OverlayLayoutParams.create(newHost, layout.windowHeightPx)
 
         _cutout.value = cutoutInfo
@@ -118,7 +138,7 @@ class OverlayWindowController(
             )
             setContent {
                 IslandTheme {
-                    IslandPill(
+                    IslandPills(
                         layout = layoutState.value,
                         onFrame = { _framesSinceShow.value += 1 },
                         onTap = { hide() },
@@ -137,8 +157,9 @@ class OverlayWindowController(
         val added = runCatching { newHost.windowManager.addView(rootView, layoutParams) }
         if (added.isFailure) {
             val error = added.exceptionOrNull()
-            log.w(TAG, "addView failed", error)
-            events.record("window_error", "addView: ${error?.javaClass?.simpleName}: ${error?.message}")
+            log.w(TAG, "addView failed on ${newHost.type}", error)
+            _lastError.value = "addView on ${newHost.type}: ${error?.javaClass?.simpleName}"
+            events.record("window_error", "addView ${newHost.type}: ${error?.message}")
             viewOwner.onDestroy()
             return@onMain
         }
@@ -149,22 +170,34 @@ class OverlayWindowController(
         params = layoutParams
         viewOwner.onResume()
         _isShown.value = true
+        _activeType.value = newHost.type
+        _usingFallbackHost.value = ready.fallback
+        _lastError.value = null
 
-        log.i(TAG, "window added: ${layout.pill}, height ${layout.windowHeightPx}px")
-        events.record("window_shown", layout.pill.toString())
+        log.i(TAG, "window added on ${newHost.type}: L${layout.left} R${layout.right}")
+        events.record("window_shown", "${newHost.type} L${layout.left} R${layout.right}")
 
-        // The collapsed pill rect is known before anything animates, so the touchable
-        // region is applied immediately rather than after a settle — otherwise the window
-        // would swallow the whole top strip for the duration of the entrance.
+        // The pill rects are known before anything animates, so the touchable region is
+        // applied immediately rather than after a settle — otherwise the window would
+        // swallow the whole top strip every time it appears.
         rootView.post { applyTouchableRegion(rootView, layout) }
 
-        // Live geometry: moving a slider in the app moves the pill without a rebuild.
         showScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { scope ->
+            // Live geometry: moving a slider in the app moves the pills without a rebuild.
             scope.launch {
                 settings.settings
-                    .map { it.pill }
+                    .map { it.island }
+                    .distinctUntilChanged()
                     .drop(1)
-                    .collect { pill -> applyGeometry(pill) }
+                    .collect { island -> applyGeometry(island) }
+            }
+            // Switching the window type needs a different window, not a relayout.
+            scope.launch {
+                settings.settings
+                    .map { it.overlayWindowType }
+                    .distinctUntilChanged()
+                    .drop(1)
+                    .collect { restart() }
             }
         }
     }
@@ -184,18 +217,39 @@ class OverlayWindowController(
         params = null
         layoutState.value = null
         _isShown.value = false
+        _activeType.value = null
+        _usingFallbackHost.value = false
         _windowVisibility.value = null
         log.i(TAG, "window removed")
         events.record("window_hidden", "")
     }
 
-    private fun applyGeometry(pill: PillGeometry) = onMain {
+    /**
+     * The host that owns our window token went away (the accessibility service was
+     * unbound — which happens on every APK update). The window is already gone from the
+     * user's point of view; drop our side of it rather than leaving a dead reference that
+     * would throw on the next removeViewImmediate.
+     */
+    fun onHostLost(reason: String) = onMain {
+        if (root == null) return@onMain
+        log.w(TAG, "host lost ($reason) — dropping the window")
+        hide()
+    }
+
+    private fun restart() = onMain {
+        if (root == null) return@onMain
+        log.i(TAG, "window type changed — recreating the window")
+        hide()
+        show()
+    }
+
+    private fun applyGeometry(island: dev.fand1l.pixelfloat.data.settings.IslandGeometry) = onMain {
         val currentHost = host ?: return@onMain
         val rootView = root ?: return@onMain
         val currentParams = params ?: return@onMain
 
         val cutoutInfo = CutoutGeometryProvider.read(currentHost)
-        val layout = OverlayGeometry.compute(cutoutInfo, pill)
+        val layout = OverlayGeometry.compute(cutoutInfo, island)
         _cutout.value = cutoutInfo
         layoutState.value = layout
 
@@ -208,9 +262,9 @@ class OverlayWindowController(
     }
 
     /**
-     * Touch pass-through. Only the pill rect is touchable; everything else in the window —
-     * in particular the area beside the pill — must reach the app underneath and must let
-     * the status-bar swipe open the shade.
+     * Touch pass-through. Only the pills are touchable; the gap between them — the part
+     * over the camera cutout — must reach the app underneath and must let the status-bar
+     * swipe open the shade. This is the stage 1b measurement.
      *
      * AttachedSurfaceControl.setTouchableRegion is the public replacement for the old
      * ViewTreeObserver.InternalInsetsInfo trick, which is @hide and blocked at targetSdk 37.
@@ -221,11 +275,31 @@ class OverlayWindowController(
             log.w(TAG, "rootSurfaceControl is null — touchable region NOT applied")
             return
         }
-        val region = Region(layout.pill.left, layout.pill.top, layout.pill.right, layout.pill.bottom)
+        val region = Region(layout.left.left, layout.left.top, layout.left.right, layout.left.bottom)
+        if (layout.rightPillVisible) {
+            region.union(
+                Rect(layout.right.left, layout.right.top, layout.right.right, layout.right.bottom)
+            )
+        }
         runCatching { surfaceControl.setTouchableRegion(region) }
-            .onSuccess { log.i(TAG, "touchable region = ${layout.pill}") }
+            .onSuccess { log.i(TAG, "touchable region = L${layout.left} R${layout.right} (gap ${layout.gap} excluded)") }
             .onFailure { log.w(TAG, "setTouchableRegion failed", it) }
     }
+
+    /**
+     * Reads what the display reports without adding a window: currentWindowMetrics works
+     * from a window context with no attached view, which is also what will let the
+     * coordinator decide whether to show at all before the window exists.
+     */
+    fun refreshCutout() = onMain {
+        val resolution = hosts.resolve(settings.settings.value.overlayWindowType)
+        if (resolution is OverlayHostRegistry.Resolution.Ready) {
+            _cutout.value = CutoutGeometryProvider.read(resolution.host)
+        }
+    }
+
+    /** Applied on the next show; the current window keeps its host until it is recreated. */
+    fun settingsSnapshot(): AppSettings = settings.settings.value
 
     private inline fun onMain(crossinline block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) block() else mainHandler.post { block() }

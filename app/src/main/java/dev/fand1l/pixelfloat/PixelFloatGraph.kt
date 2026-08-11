@@ -8,6 +8,7 @@ import dev.fand1l.pixelfloat.core.DebugLog
 import dev.fand1l.pixelfloat.data.db.EventRepository
 import dev.fand1l.pixelfloat.data.db.PixelFloatDatabase
 import dev.fand1l.pixelfloat.data.settings.SettingsRepository
+import dev.fand1l.pixelfloat.overlay.OverlayHostRegistry
 import dev.fand1l.pixelfloat.overlay.OverlayWindowController
 import dev.fand1l.pixelfloat.service.ServiceConnectionState
 import kotlinx.coroutines.CoroutineScope
@@ -50,8 +51,11 @@ class PixelFloatGraph(private val application: Application) {
 
     val settings: SettingsRepository by lazy { SettingsRepository(application, ioScope) }
 
+    /** Arbitrates between the accessibility host and the app-overlay fallback. */
+    val hosts: OverlayHostRegistry by lazy { OverlayHostRegistry(application, debugLog) }
+
     val overlay: OverlayWindowController by lazy {
-        OverlayWindowController(application, settings, events, debugLog)
+        OverlayWindowController(hosts, settings, events, debugLog)
     }
 
     fun start() {

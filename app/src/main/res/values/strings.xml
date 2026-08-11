@@ -7,27 +7,41 @@
     <string name="accessibility_service_summary">Draws the notification island above the status bar</string>
     <string name="accessibility_service_description">Pixel Float uses this service only to draw its notification island above the status bar and the lock screen. It does not read screen content.</string>
 
-    <string name="stage_banner">Stage 1a — window spike</string>
+    <string name="stage_banner">Stage 1b — two pills, both window types</string>
 
+    <string name="permissions_title">Permissions</string>
     <string name="permission_overlay_title">Draw over other apps</string>
-    <string name="permission_overlay_granted">Granted</string>
-    <string name="permission_overlay_missing">Not granted — the island cannot be shown</string>
-    <string name="permission_overlay_action">Grant</string>
+    <string name="permission_accessibility_title">Accessibility</string>
+    <string name="permission_listener_title">Notification access</string>
+    <string name="restricted_settings_hint">Installed outside Play: if a toggle is greyed out, use App info → ⋮ → Allow restricted settings first.</string>
+    <string name="app_info">App info</string>
 
+    <string name="window_type_title">Window type</string>
+    <string name="window_type_hint">Layer 31 (accessibility) draws above the status bar and the keyguard; layer 11 (app overlay) draws below both.</string>
+    <string name="window_type_fallback">The preferred host is unavailable — showing on the fallback.</string>
+
+    <string name="island_title">Island</string>
     <string name="island_show">Show island</string>
     <string name="island_hide">Hide island</string>
+    <string name="no_frames_warning">0 frames while attached → the composition never rendered.</string>
+    <string name="stage_1b_checks">Check: (1) do the pills flank the cutout, (2) do the status-bar icons draw over them, (3) is the island visible on the lock screen, (4) does a swipe down in the gap still open the shade.</string>
 
-    <string name="geometry_title">Pill geometry</string>
-    <string name="geometry_width">Width</string>
-    <string name="geometry_height">Height</string>
-    <string name="geometry_offset_x">Horizontal offset</string>
+    <string name="geometry_title">Island geometry</string>
+    <string name="geometry_gap">Gap (over the cutout)</string>
     <string name="geometry_offset_y">Vertical offset</string>
+    <string name="geometry_height">Height</string>
+    <string name="geometry_left_width">Left pill width</string>
+    <string name="geometry_right_width">Right pill width</string>
+    <string name="geometry_center_offset">Horizontal shift</string>
     <string name="geometry_corner">Corner radius</string>
+    <string name="geometry_right_visible">Draw the right pill</string>
+    <string name="geometry_seed">Seed from cutout</string>
+    <string name="reset">Reset</string>
+    <string name="refresh">Refresh</string>
 
     <string name="cutout_title">Display cutout</string>
     <string name="cutout_none">No cutout reported</string>
 
-    <string name="services_title">Services</string>
     <string name="service_bound">bound</string>
     <string name="service_unbound">not bound</string>
 
@@ -36,8 +50,5 @@
     <string name="log_empty">Empty</string>
 
     <string name="crash_title">Last crash</string>
-    <string name="crash_none">None recorded</string>
     <string name="crash_clear">Clear</string>
-
-    <string name="check_touches">Check: tap the gap beside the pill and swipe down — the shade must still open.</string>
 </resources>

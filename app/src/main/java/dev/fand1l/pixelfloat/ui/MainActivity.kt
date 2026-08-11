@@ -18,11 +18,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -39,17 +42,20 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.fand1l.pixelfloat.R
-import dev.fand1l.pixelfloat.data.settings.PillGeometry
+import dev.fand1l.pixelfloat.data.settings.IslandGeometry
+import dev.fand1l.pixelfloat.data.settings.OverlayWindowType
 import dev.fand1l.pixelfloat.graph
+import dev.fand1l.pixelfloat.overlay.OverlayGeometry
+import dev.fand1l.pixelfloat.permission.AccessibilityAccess
 import dev.fand1l.pixelfloat.theme.PixelFloatTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
- * Stage 1a control panel. This is not the real UI — onboarding, calibration, whitelist,
- * settings and history come later. Right now it exists to answer four questions on device:
- * does the window appear, does it appear in the right place, does it break touches, and
- * what does the display actually report about its cutout.
+ * Stage 1b control panel. Not the real UI — onboarding, calibration, whitelist, settings
+ * and history come later. It exists to answer, on device: do the pills land beside the
+ * cutout, does the chosen window type behave as the AOSP layer table predicts, and does
+ * the gap between the pills still pass touches through.
  */
 class MainActivity : ComponentActivity() {
 
@@ -59,7 +65,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PixelFloatTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-                    StageOneScreen(modifier = Modifier.padding(padding))
+                    StageScreen(modifier = Modifier.padding(padding))
                 }
             }
         }
@@ -67,21 +73,27 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun StageOneScreen(modifier: Modifier = Modifier) {
+private fun StageScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val graph = context.graph
     val scope = rememberCoroutineScope()
 
     var canDrawOverlays by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    var accessibilityGranted by remember { mutableStateOf(AccessibilityAccess.isGranted(context)) }
     LifecycleResumeEffect(Unit) {
         canDrawOverlays = Settings.canDrawOverlays(context)
+        accessibilityGranted = AccessibilityAccess.isGranted(context)
+        graph.overlay.refreshCutout()
         onPauseOrDispose { }
     }
 
     val isShown by graph.overlay.isShown.collectAsStateWithLifecycle()
+    val activeType by graph.overlay.activeType.collectAsStateWithLifecycle()
+    val usingFallback by graph.overlay.usingFallbackHost.collectAsStateWithLifecycle()
     val frames by graph.overlay.framesSinceShow.collectAsStateWithLifecycle()
     val cutout by graph.overlay.cutout.collectAsStateWithLifecycle()
     val windowVisibility by graph.overlay.windowVisibility.collectAsStateWithLifecycle()
+    val lastError by graph.overlay.lastError.collectAsStateWithLifecycle()
     val settings by graph.settings.settings.collectAsStateWithLifecycle()
     val logLines by graph.debugLog.lines.collectAsStateWithLifecycle()
     val listenerConnected by graph.serviceState.listenerConnected.collectAsStateWithLifecycle()
@@ -89,6 +101,10 @@ private fun StageOneScreen(modifier: Modifier = Modifier) {
 
     val crash = remember { graph.crashRecorder.read() }
     var crashVisible by remember { mutableStateOf(crash != null) }
+
+    fun updateIsland(transform: (IslandGeometry) -> IslandGeometry) {
+        scope.launch { graph.settings.update { it.copy(island = transform(it.island)) } }
+    }
 
     Column(
         modifier = modifier
@@ -102,82 +118,155 @@ private fun StageOneScreen(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.titleMedium,
         )
 
-        SectionCard(title = stringResource(R.string.permission_overlay_title)) {
+        SectionCard(title = stringResource(R.string.permissions_title)) {
+            Text("${stringResource(R.string.permission_overlay_title)}: " + if (canDrawOverlays) "✓" else "✗")
             Text(
-                text = if (canDrawOverlays) {
-                    stringResource(R.string.permission_overlay_granted)
-                } else {
-                    stringResource(R.string.permission_overlay_missing)
-                },
-                style = MaterialTheme.typography.bodyMedium,
+                "${stringResource(R.string.permission_accessibility_title)}: " +
+                    (if (accessibilityGranted) "✓" else "✗") +
+                    " · " + (if (accessibilityConnected) stringResource(R.string.service_bound)
+                    else stringResource(R.string.service_unbound))
             )
-            if (!canDrawOverlays) {
-                Button(
-                    onClick = {
+            Text(
+                "${stringResource(R.string.permission_listener_title)}: " +
+                    if (listenerConnected) stringResource(R.string.service_bound)
+                    else stringResource(R.string.service_unbound)
+            )
+            Text(
+                text = stringResource(R.string.restricted_settings_hint),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!canDrawOverlays) {
+                    Button(onClick = {
                         context.startActivity(
                             Intent(
                                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                                 Uri.parse("package:${context.packageName}"),
                             )
                         )
-                    }
-                ) { Text(stringResource(R.string.permission_overlay_action)) }
+                    }) { Text(stringResource(R.string.permission_overlay_title)) }
+                }
+                OutlinedButton(onClick = { context.startActivity(AccessibilityAccess.settingsIntent()) }) {
+                    Text(stringResource(R.string.permission_accessibility_title))
+                }
+                OutlinedButton(onClick = { context.startActivity(AccessibilityAccess.appInfoIntent(context)) }) {
+                    Text(stringResource(R.string.app_info))
+                }
             }
         }
 
-        SectionCard(title = "Island") {
+        SectionCard(title = stringResource(R.string.window_type_title)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    enabled = canDrawOverlays,
-                    onClick = { graph.overlay.toggle() },
-                ) {
-                    Text(
-                        if (isShown) stringResource(R.string.island_hide)
-                        else stringResource(R.string.island_show)
+                OverlayWindowType.entries.forEach { type ->
+                    FilterChip(
+                        selected = settings.overlayWindowType == type,
+                        onClick = {
+                            scope.launch { graph.settings.update { it.copy(overlayWindowType = type) } }
+                        },
+                        label = {
+                            Text(
+                                when (type) {
+                                    OverlayWindowType.ACCESSIBILITY_OVERLAY -> "accessibility (31)"
+                                    OverlayWindowType.APPLICATION_OVERLAY -> "app overlay (11)"
+                                }
+                            )
+                        },
                     )
                 }
             }
             Text(
-                text = "attached: $isShown · frames: $frames · visibility: " +
-                    (windowVisibility?.let { visibilityName(it) } ?: "—"),
+                text = stringResource(R.string.window_type_hint),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            if (usingFallback) {
+                Text(
+                    text = stringResource(R.string.window_type_fallback),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+
+        SectionCard(title = stringResource(R.string.island_title)) {
+            Button(onClick = { graph.overlay.toggle() }) {
+                Text(
+                    if (isShown) stringResource(R.string.island_hide)
+                    else stringResource(R.string.island_show)
+                )
+            }
+            Text(
+                text = "attached: $isShown · host: ${activeType ?: "—"} · frames: $frames · " +
+                    "visibility: ${windowVisibility?.let(::visibilityName) ?: "—"}",
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace,
             )
             if (isShown && frames == 0) {
                 Text(
-                    text = "0 frames while attached → the composition never rendered.",
+                    text = stringResource(R.string.no_frames_warning),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            lastError?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
             Text(
-                text = stringResource(R.string.check_touches),
+                text = stringResource(R.string.stage_1b_checks),
                 style = MaterialTheme.typography.bodySmall,
             )
         }
 
         SectionCard(title = stringResource(R.string.geometry_title)) {
-            val pill = settings.pill
-            DpSlider(stringResource(R.string.geometry_width), pill.widthDp, 24f..320f) { value ->
-                scope.launch { graph.settings.update { it.copy(pill = it.pill.copy(widthDp = value)) } }
+            val island = settings.island
+            DpSlider(stringResource(R.string.geometry_gap), island.gapDp, 0f..200f) { v ->
+                updateIsland { it.copy(gapDp = v) }
             }
-            DpSlider(stringResource(R.string.geometry_height), pill.heightDp, 8f..64f) { value ->
-                scope.launch { graph.settings.update { it.copy(pill = it.pill.copy(heightDp = value)) } }
+            DpSlider(stringResource(R.string.geometry_offset_y), island.offsetYDp, 0f..120f) { v ->
+                updateIsland { it.copy(offsetYDp = v) }
             }
-            DpSlider(stringResource(R.string.geometry_offset_x), pill.offsetXDp, -200f..200f) { value ->
-                scope.launch { graph.settings.update { it.copy(pill = it.pill.copy(offsetXDp = value)) } }
+            DpSlider(stringResource(R.string.geometry_height), island.heightDp, 8f..64f) { v ->
+                updateIsland { it.copy(heightDp = v) }
             }
-            DpSlider(stringResource(R.string.geometry_offset_y), pill.offsetYDp, 0f..120f) { value ->
-                scope.launch { graph.settings.update { it.copy(pill = it.pill.copy(offsetYDp = value)) } }
+            DpSlider(stringResource(R.string.geometry_left_width), island.leftWidthDp, 8f..240f) { v ->
+                updateIsland { it.copy(leftWidthDp = v) }
             }
-            DpSlider(stringResource(R.string.geometry_corner), pill.cornerDp, 0f..40f) { value ->
-                scope.launch { graph.settings.update { it.copy(pill = it.pill.copy(cornerDp = value)) } }
+            DpSlider(stringResource(R.string.geometry_right_width), island.rightWidthDp, 8f..240f) { v ->
+                updateIsland { it.copy(rightWidthDp = v) }
             }
-            OutlinedButton(
-                onClick = {
-                    scope.launch { graph.settings.update { it.copy(pill = PillGeometry()) } }
+            DpSlider(stringResource(R.string.geometry_center_offset), island.centerOffsetXDp, -60f..60f) { v ->
+                updateIsland { it.copy(centerOffsetXDp = v) }
+            }
+            DpSlider(stringResource(R.string.geometry_corner), island.cornerDp, 0f..40f) { v ->
+                updateIsland { it.copy(cornerDp = v) }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Switch(
+                    checked = island.rightPillVisible,
+                    onCheckedChange = { checked -> updateIsland { it.copy(rightPillVisible = checked) } },
+                )
+                Text(stringResource(R.string.geometry_right_visible))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    enabled = cutout?.activeRect != null,
+                    onClick = {
+                        cutout?.let { info ->
+                            updateIsland { OverlayGeometry.seedFrom(info, it) }
+                        }
+                    },
+                ) { Text(stringResource(R.string.geometry_seed)) }
+                OutlinedButton(onClick = { updateIsland { IslandGeometry() } }) {
+                    Text(stringResource(R.string.reset))
                 }
-            ) { Text("Reset") }
+            }
         }
 
         SectionCard(title = stringResource(R.string.cutout_title)) {
@@ -186,26 +275,8 @@ private fun StageOneScreen(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace,
             )
-        }
-
-        SectionCard(title = stringResource(R.string.services_title)) {
-            val bound = stringResource(R.string.service_bound)
-            val unbound = stringResource(R.string.service_unbound)
-            Text("notification listener: ${if (listenerConnected) bound else unbound}")
-            Text("accessibility: ${if (accessibilityConnected) bound else unbound}")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        context.startActivity(
-                            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                        )
-                    }
-                ) { Text("Notification access") }
-                OutlinedButton(
-                    onClick = {
-                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    }
-                ) { Text("Accessibility") }
+            OutlinedButton(onClick = { graph.overlay.refreshCutout() }) {
+                Text(stringResource(R.string.refresh))
             }
         }
 
@@ -216,12 +287,10 @@ private fun StageOneScreen(modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
                 )
-                OutlinedButton(
-                    onClick = {
-                        graph.crashRecorder.clear()
-                        crashVisible = false
-                    }
-                ) { Text(stringResource(R.string.crash_clear)) }
+                OutlinedButton(onClick = {
+                    graph.crashRecorder.clear()
+                    crashVisible = false
+                }) { Text(stringResource(R.string.crash_clear)) }
             }
         }
 

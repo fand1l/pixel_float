@@ -7,27 +7,41 @@
     <string name="accessibility_service_summary">Малює острівець сповіщень поверх статус-бара</string>
     <string name="accessibility_service_description">Pixel Float використовує цю службу лише для того, щоб малювати острівець сповіщень поверх статус-бара й екрана блокування. Вміст екрана не читається.</string>
 
-    <string name="stage_banner">Етап 1a — перевірка вікна</string>
+    <string name="stage_banner">Етап 1b — дві пігулки, обидва типи вікна</string>
 
+    <string name="permissions_title">Дозволи</string>
     <string name="permission_overlay_title">Поверх інших застосунків</string>
-    <string name="permission_overlay_granted">Надано</string>
-    <string name="permission_overlay_missing">Не надано — острівець не показати</string>
-    <string name="permission_overlay_action">Надати</string>
+    <string name="permission_accessibility_title">Спеціальні можливості</string>
+    <string name="permission_listener_title">Доступ до сповіщень</string>
+    <string name="restricted_settings_hint">Встановлено поза Play: якщо перемикач неактивний, спершу «Про застосунок → ⋮ → Дозволити обмежені налаштування».</string>
+    <string name="app_info">Про застосунок</string>
 
+    <string name="window_type_title">Тип вікна</string>
+    <string name="window_type_hint">Шар 31 (accessibility) малює поверх статус-бара й екрана блокування; шар 11 (звичайний оверлей) — під ними.</string>
+    <string name="window_type_fallback">Бажаний хост недоступний — показано на запасному.</string>
+
+    <string name="island_title">Острівець</string>
     <string name="island_show">Показати острівець</string>
     <string name="island_hide">Сховати острівець</string>
+    <string name="no_frames_warning">0 кадрів при доданому вікні → композиція не малювалась.</string>
+    <string name="stage_1b_checks">Перевірка: (1) чи пігулки стали збоку від вирізу, (2) чи значки статус-бара малюються поверх них, (3) чи видно острівець на екрані блокування, (4) чи свайп униз у проміжку все ще відкриває шторку.</string>
 
-    <string name="geometry_title">Геометрія пігулки</string>
-    <string name="geometry_width">Ширина</string>
-    <string name="geometry_height">Висота</string>
-    <string name="geometry_offset_x">Зсув по горизонталі</string>
+    <string name="geometry_title">Геометрія острівця</string>
+    <string name="geometry_gap">Проміжок (над вирізом)</string>
     <string name="geometry_offset_y">Зсув по вертикалі</string>
+    <string name="geometry_height">Висота</string>
+    <string name="geometry_left_width">Ширина лівої пігулки</string>
+    <string name="geometry_right_width">Ширина правої пігулки</string>
+    <string name="geometry_center_offset">Зсув по горизонталі</string>
     <string name="geometry_corner">Радіус заокруглення</string>
+    <string name="geometry_right_visible">Малювати праву пігулку</string>
+    <string name="geometry_seed">Підказати з вирізу</string>
+    <string name="reset">Скинути</string>
+    <string name="refresh">Оновити</string>
 
     <string name="cutout_title">Виріз екрана</string>
     <string name="cutout_none">Виріз не повідомлено</string>
 
-    <string name="services_title">Служби</string>
     <string name="service_bound">прив\'язана</string>
     <string name="service_unbound">не прив\'язана</string>
 
@@ -36,8 +50,5 @@
     <string name="log_empty">Порожньо</string>
 
     <string name="crash_title">Останнє падіння</string>
-    <string name="crash_none">Не зафіксовано</string>
     <string name="crash_clear">Очистити</string>
-
-    <string name="check_touches">Перевірка: торкніться екрана поруч із пігулкою і потягніть униз — шторка має відкритися.</string>
 </resources>
