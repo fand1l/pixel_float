@@ -16,6 +16,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dev.fand1l.pixelfloat.core.DebugLog
 import dev.fand1l.pixelfloat.data.db.EventRepository
 import dev.fand1l.pixelfloat.data.settings.AppSettings
+import dev.fand1l.pixelfloat.data.settings.IslandGeometry
 import dev.fand1l.pixelfloat.data.settings.OverlayWindowType
 import dev.fand1l.pixelfloat.data.settings.SettingsRepository
 import dev.fand1l.pixelfloat.overlay.ui.IslandPills
@@ -89,7 +90,7 @@ class OverlayWindowController(
         if (_isShown.value) hide() else show()
     }
 
-    fun show() = onMain {
+    fun show(): Unit = onMain {
         if (root != null) {
             log.i(TAG, "show ignored: window already attached")
             return@onMain
@@ -202,7 +203,7 @@ class OverlayWindowController(
         }
     }
 
-    fun hide() = onMain {
+    fun hide(): Unit = onMain {
         val rootView = root ?: return@onMain
         showScope?.cancel()
         showScope = null
@@ -230,20 +231,20 @@ class OverlayWindowController(
      * user's point of view; drop our side of it rather than leaving a dead reference that
      * would throw on the next removeViewImmediate.
      */
-    fun onHostLost(reason: String) = onMain {
+    fun onHostLost(reason: String): Unit = onMain {
         if (root == null) return@onMain
         log.w(TAG, "host lost ($reason) — dropping the window")
         hide()
     }
 
-    private fun restart() = onMain {
+    private fun restart(): Unit = onMain {
         if (root == null) return@onMain
         log.i(TAG, "window type changed — recreating the window")
         hide()
         show()
     }
 
-    private fun applyGeometry(island: dev.fand1l.pixelfloat.data.settings.IslandGeometry) = onMain {
+    private fun applyGeometry(island: IslandGeometry): Unit = onMain {
         val currentHost = host ?: return@onMain
         val rootView = root ?: return@onMain
         val currentParams = params ?: return@onMain
@@ -291,7 +292,7 @@ class OverlayWindowController(
      * from a window context with no attached view, which is also what will let the
      * coordinator decide whether to show at all before the window exists.
      */
-    fun refreshCutout() = onMain {
+    fun refreshCutout(): Unit = onMain {
         val resolution = hosts.resolve(settings.settings.value.overlayWindowType)
         if (resolution is OverlayHostRegistry.Resolution.Ready) {
             _cutout.value = CutoutGeometryProvider.read(resolution.host)
