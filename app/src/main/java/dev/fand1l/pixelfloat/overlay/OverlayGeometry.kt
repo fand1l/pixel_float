@@ -1,18 +1,17 @@
 package dev.fand1l.pixelfloat.overlay
 
-import android.graphics.Rect
 import dev.fand1l.pixelfloat.data.settings.PillGeometry
 import kotlin.math.roundToInt
 
 /** Where the window sits and where the pill sits inside it, in window-local pixels. */
 data class IslandLayout(
     val windowHeightPx: Int,
-    val pill: Rect,
+    val pill: PillRect,
     val cornerRadiusPx: Float,
 )
 
 /**
- * A pure function of (settings, display metrics) — no Android state, so it is unit
+ * A pure function of (settings, display metrics) — no Android types at all, so it is unit
  * testable and the in-app calibration preview can share it verbatim, which is what makes
  * the preview's coordinate space provably identical to the overlay's.
  */
@@ -33,14 +32,14 @@ object OverlayGeometry {
         val topPx = (pill.offsetYDp * density).roundToInt().coerceAtLeast(0)
 
         val centreX = cutout.windowWidthPx / 2 + (pill.offsetXDp * density).roundToInt()
-        val left = (centreX - widthPx / 2).coerceIn(0, (cutout.windowWidthPx - widthPx).coerceAtLeast(0))
+        val left = (centreX - widthPx / 2)
+            .coerceIn(0, (cutout.windowWidthPx - widthPx).coerceAtLeast(0))
 
         val headroomPx = (heightPx * OVERSHOOT_HEADROOM).roundToInt()
-        val windowHeightPx = topPx + heightPx + headroomPx
 
         return IslandLayout(
-            windowHeightPx = windowHeightPx,
-            pill = Rect(left, topPx, left + widthPx, topPx + heightPx),
+            windowHeightPx = topPx + heightPx + headroomPx,
+            pill = PillRect(left, topPx, left + widthPx, topPx + heightPx),
             cornerRadiusPx = pill.cornerDp * density,
         )
     }

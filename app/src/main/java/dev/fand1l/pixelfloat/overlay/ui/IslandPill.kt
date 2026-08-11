@@ -48,8 +48,8 @@ fun IslandPill(
             modifier = Modifier
                 .offset { IntOffset(layout.pill.left, layout.pill.top) }
                 .size(
-                    width = with(density) { layout.pill.width().toDp() },
-                    height = with(density) { layout.pill.height().toDp() },
+                    width = with(density) { layout.pill.width.toDp() },
+                    height = with(density) { layout.pill.height.toDp() },
                 )
                 .clip(RoundedCornerShape(with(density) { layout.cornerRadiusPx.toDp() }))
                 .background(MaterialTheme.colorScheme.primary)

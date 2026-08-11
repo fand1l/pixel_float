@@ -1,9 +1,12 @@
 package dev.fand1l.pixelfloat.overlay
 
-import android.graphics.Rect
 import android.view.Surface
 
-/** What the display tells us about itself, read fresh on every show and every rotation. */
+/**
+ * What the display tells us about itself, read fresh on every show and every rotation.
+ * Platform rectangles are converted to [PillRect] at the boundary so everything downstream
+ * stays plain Kotlin and unit testable.
+ */
 data class CutoutInfo(
     val windowWidthPx: Int,
     val windowHeightPx: Int,
@@ -11,7 +14,7 @@ data class CutoutInfo(
     val densityDpi: Int,
     val rotation: Int,
     val safeInsetTopPx: Int,
-    val boundingRects: List<Rect>,
+    val boundingRects: List<PillRect>,
 ) {
     val isLandscape: Boolean
         get() = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
@@ -21,7 +24,7 @@ data class CutoutInfo(
      * in landscape on a Pixel 9 Pro, because the punch-hole moves to a side edge — seeding
      * a landscape profile from it would pin the island at 0,0.
      */
-    val activeRect: Rect?
+    val activeRect: PillRect?
         get() = boundingRects.firstOrNull { !it.isEmpty }
 
     fun describe(): String = buildString {
@@ -31,7 +34,7 @@ data class CutoutInfo(
             append("boundingRects: none")
         } else {
             boundingRects.forEachIndexed { index, rect ->
-                append("rect[$index] = ${rect.left},${rect.top} → ${rect.right},${rect.bottom}")
+                append("rect[$index] = $rect")
                 if (index != boundingRects.lastIndex) append('\n')
             }
         }
@@ -48,8 +51,7 @@ object CutoutGeometryProvider {
     fun read(host: OverlayHost): CutoutInfo {
         val metrics = host.windowManager.currentWindowMetrics
         val bounds = metrics.bounds
-        val insets = metrics.windowInsets
-        val cutout = insets.displayCutout
+        val cutout = metrics.windowInsets.displayCutout
         val resources = host.windowContext.resources
 
         return CutoutInfo(
@@ -59,7 +61,9 @@ object CutoutGeometryProvider {
             densityDpi = resources.configuration.densityDpi,
             rotation = host.display.rotation,
             safeInsetTopPx = cutout?.safeInsetTop ?: 0,
-            boundingRects = cutout?.boundingRects.orEmpty(),
+            boundingRects = cutout?.boundingRects.orEmpty().map {
+                PillRect(it.left, it.top, it.right, it.bottom)
+            },
         )
     }
 }

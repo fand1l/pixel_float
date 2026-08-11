@@ -56,7 +56,18 @@ class OverlayGeometryTest {
         val pill = PillGeometry(widthDp = 100f, heightDp = 30f)
         val low = OverlayGeometry.compute(cutout(density = 2f), pill)
         val high = OverlayGeometry.compute(cutout(density = 3f), pill)
-        assertEquals(200, low.pill.width())
-        assertEquals(300, high.pill.width())
+        assertEquals(200, low.pill.width)
+        assertEquals(300, high.pill.width)
+    }
+
+    /**
+     * Guards the reason this whole layer uses PillRect instead of android.graphics.Rect:
+     * under a local unit test the platform Rect leaves its fields at 0 and its methods
+     * throw, so a geometry built on it is silently wrong exactly where it is being tested.
+     */
+    @Test
+    fun `geometry uses no platform types`() {
+        val layout = OverlayGeometry.compute(cutout(), PillGeometry())
+        assertEquals(PillRect::class.java, layout.pill.javaClass)
     }
 }

@@ -16,6 +16,7 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dev.fand1l.pixelfloat.core.DebugLog
 import dev.fand1l.pixelfloat.data.db.EventRepository
+import dev.fand1l.pixelfloat.data.settings.PillGeometry
 import dev.fand1l.pixelfloat.data.settings.SettingsRepository
 import dev.fand1l.pixelfloat.overlay.ui.IslandPill
 import dev.fand1l.pixelfloat.theme.IslandTheme
@@ -150,7 +151,7 @@ class OverlayWindowController(
         _isShown.value = true
 
         log.i(TAG, "window added: ${layout.pill}, height ${layout.windowHeightPx}px")
-        events.record("window_shown", layout.pill.toShortString())
+        events.record("window_shown", layout.pill.toString())
 
         // The collapsed pill rect is known before anything animates, so the touchable
         // region is applied immediately rather than after a settle — otherwise the window
@@ -188,7 +189,7 @@ class OverlayWindowController(
         events.record("window_hidden", "")
     }
 
-    private fun applyGeometry(pill: dev.fand1l.pixelfloat.data.settings.PillGeometry) = onMain {
+    private fun applyGeometry(pill: PillGeometry) = onMain {
         val currentHost = host ?: return@onMain
         val rootView = root ?: return@onMain
         val currentParams = params ?: return@onMain
@@ -222,7 +223,7 @@ class OverlayWindowController(
         }
         val region = Region(layout.pill.left, layout.pill.top, layout.pill.right, layout.pill.bottom)
         runCatching { surfaceControl.setTouchableRegion(region) }
-            .onSuccess { log.i(TAG, "touchable region = ${layout.pill.toShortString()}") }
+            .onSuccess { log.i(TAG, "touchable region = ${layout.pill}") }
             .onFailure { log.w(TAG, "setTouchableRegion failed", it) }
     }
 
